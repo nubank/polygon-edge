@@ -439,7 +439,17 @@ func (e *Eth) EstimateGas(arg *txnArgs, rawNum *BlockNumber) (interface{}, error
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	forksInTime := e.store.GetForksInTime(uint64(number))
+=======
+	// testTransaction should execute tx with nonce always set to the current expected nonce for the account
+	transaction, err := DecodeTxn(arg, header.Number, e.store, true)
+	if err != nil {
+		return nil, err
+	}
+
+	forksInTime := e.store.GetForksInTime(header.Number)
+>>>>>>> 9b5bbe41 (EVM-800 nonce too low from eth_getTransactionCount (#1853))
 
 	var standardGas uint64
 	if transaction.IsContractCreation() && forksInTime.Homestead {
@@ -654,7 +664,7 @@ func (e *Eth) GetTransactionCount(address types.Address, filter BlockNumberOrHas
 
 	// The filter is empty, use the latest block by default
 	if filter.BlockNumber == nil && filter.BlockHash == nil {
-		filter.BlockNumber, _ = createBlockNumberPointer("latest")
+		filter.BlockNumber, _ = createBlockNumberPointer(latest)
 	}
 
 	if filter.BlockNumber == nil {
