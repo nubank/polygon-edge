@@ -3,8 +3,8 @@ package ibft
 import (
 	"google.golang.org/protobuf/proto"
 
-	protoIBFT "github.com/0xPolygon/go-ibft/messages/proto"
 	"github.com/0xPolygon/polygon-edge/types"
+	protoIBFT "github.com/Route3/go-ibft/messages/proto"
 )
 
 func (i *backendIBFT) signMessage(msg *protoIBFT.Message) *protoIBFT.Message {

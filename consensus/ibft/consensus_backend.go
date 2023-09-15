@@ -6,12 +6,12 @@ import (
 	"math"
 	"time"
 
-	"github.com/0xPolygon/go-ibft/messages"
 	"github.com/0xPolygon/polygon-edge/consensus"
 	"github.com/0xPolygon/polygon-edge/consensus/ibft/signer"
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/state"
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Route3/go-ibft/messages"
 )
 
 func (i *backendIBFT) BuildProposal(blockNumber uint64) []byte {

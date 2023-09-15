@@ -264,6 +264,7 @@ func (i *backendIBFT) startConsensus() {
 
 		for {
 			if ev := <-eventCh; ev.Source == "syncer" {
+				i.logger.Debug("received syncer event", "event height", ev.NewChain[0].Number, "current height", i.blockchain.Header().Number)
 				if ev.NewChain[0].Number < i.blockchain.Header().Number {
 					// The blockchain notification system can eventually deliver
 					// stale block notifications. These should be ignored
@@ -309,14 +310,20 @@ func (i *backendIBFT) startConsensus() {
 
 		select {
 		case <-syncerBlockCh:
+			i.logger.Debug("channel: syncerBlockCh")
 			if isValidator {
+				i.logger.Debug("canceling sequence", "sequence", pending)
 				i.consensus.stopSequence()
 				i.logger.Info("canceled sequence", "sequence", pending)
 			}
 		case <-sequenceCh:
+			i.logger.Debug("channel: sequenceCh")
 		case <-i.closeCh:
+			i.logger.Debug("channel: closeCh")
 			if isValidator {
+				i.logger.Debug("canceling sequence", "sequence", pending)
 				i.consensus.stopSequence()
+				i.logger.Info("canceled sequence", "sequence", pending)
 			}
 
 			return

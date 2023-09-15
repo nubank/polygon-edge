@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/0xPolygon/go-ibft/core"
+	"github.com/Route3/go-ibft/core"
 )
 
 // IBFTConsensus is a convenience wrapper for the go-ibft package
