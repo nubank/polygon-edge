@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 
-	"github.com/0xPolygon/go-ibft/messages"
-	protoIBFT "github.com/0xPolygon/go-ibft/messages/proto"
 	"github.com/0xPolygon/polygon-edge/types"
+	"github.com/Route3/go-ibft/messages"
+	protoIBFT "github.com/Route3/go-ibft/messages/proto"
 )
 
 // Verifier impl for go-ibft

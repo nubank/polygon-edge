@@ -102,7 +102,7 @@ func DefaultConfig() *Config {
 			MaxSlots:           4096,
 			MaxAccountEnqueued: 128,
 		},
-		LogLevel:    "INFO",
+		LogLevel:    "DEBUG",
 		RestoreFile: "",
 		BlockTime:   DefaultBlockTime,
 		Headers: &Headers{
