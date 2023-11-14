@@ -2,7 +2,6 @@ package itrie
 
 import (
 	"fmt"
-
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/0xPolygon/polygon-edge/state"
@@ -39,11 +38,7 @@ func (s *State) NewSnapshotAt(root types.Hash) (state.Snapshot, error) {
 }
 
 func (s *State) newTrie() *Trie {
-	t := NewTrie()
-	t.state = s
-	t.storage = s.storage
-
-	return t
+	return NewTrie()
 }
 
 func (s *State) SetCode(hash types.Hash, code []byte) {
@@ -67,14 +62,7 @@ func (s *State) newTrieAt(root types.Hash) (*Trie, error) {
 			return nil, fmt.Errorf("invalid type assertion on root: %s", root)
 		}
 
-		t.state = s
-
-		trie, ok := tt.(*Trie)
-		if !ok {
-			return nil, fmt.Errorf("invalid type assertion on root: %s", root)
-		}
-
-		return trie, nil
+		return t, nil
 	}
 
 	n, ok, err := GetNode(root.Bytes(), s.storage)
@@ -87,9 +75,7 @@ func (s *State) newTrieAt(root types.Hash) (*Trie, error) {
 	}
 
 	t := &Trie{
-		root:    n,
-		state:   s,
-		storage: s.storage,
+		root: n,
 	}
 
 	return t, nil

@@ -15,11 +15,13 @@ var mockHeader = &types.Header{
 
 type defaultMockStore struct {
 	DefaultHeader *types.Header
+
+	nonce uint64
 }
 
 func NewDefaultMockStore(header *types.Header) defaultMockStore {
 	return defaultMockStore{
-		header,
+		DefaultHeader: header,
 	}
 }
 
@@ -28,7 +30,7 @@ func (m defaultMockStore) Header() *types.Header {
 }
 
 func (m defaultMockStore) GetNonce(types.Hash, types.Address) uint64 {
-	return 0
+	return m.nonce
 }
 
 func (m defaultMockStore) GetBlockByHash(types.Hash, bool) (*types.Block, bool) {

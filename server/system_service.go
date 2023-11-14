@@ -224,8 +224,7 @@ func (s *systemService) Export(req *proto.ExportRequest, stream proto.System_Exp
 
 const (
 	defaultMaxGRPCPayloadSize uint64 = 512 * 1024 // 4MB
-
-	// Number of header fields * bytes per field (From, To, Latest all them uint64)
+	// number of header fields * bytes per field (From, To, Latest all them uint64)
 	maxHeaderInfoSize int = 3 * 8
 )
 
