@@ -58,3 +58,7 @@ run-local:
 stop-local:
 	docker-compose -f ./docker/local/docker-compose.yml stop
 
+.PHONY: destroy-local
+destroy-local:
+	docker-compose -f ./docker/local/docker-compose.yml down -v
+

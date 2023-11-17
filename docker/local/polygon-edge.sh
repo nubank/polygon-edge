@@ -19,6 +19,8 @@ case "$1" in
           "$POLYGON_EDGE_BIN" genesis \
             --dir "$GENESIS_PATH" \
             --consensus ibft \
+            --premine 0x228466F2C715CbEC05dEAbfAc040ce3619d7CF0B \
+            --block-gas-limit 30000000 \
             --ibft-validators-prefix-path data- \
             --bootnode /dns4/node-1/tcp/1478/p2p/$(echo $secrets | jq -r '.[0] | .node_id') \
             --bootnode /dns4/node-2/tcp/1478/p2p/$(echo $secrets | jq -r '.[1] | .node_id')
