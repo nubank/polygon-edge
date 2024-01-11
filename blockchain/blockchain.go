@@ -893,8 +893,8 @@ func (b *Blockchain) WriteBlock(block *types.Block, source string) error {
 	}
 
 	// Write the header to the chain
-	evnt := &Event{Source: source}
-	if err := b.writeHeaderImpl(evnt, header); err != nil {
+	event := &Event{Source: source}
+	if err := b.writeHeaderImpl(event, header); err != nil {
 		return err
 	}
 
@@ -916,7 +916,7 @@ func (b *Blockchain) WriteBlock(block *types.Block, source string) error {
 		return err
 	}
 
-	b.dispatchEvent(evnt)
+	b.dispatchEvent(event)
 
 	// Update the average gas price
 	b.updateGasPriceAvgWithBlock(block)
@@ -926,6 +926,7 @@ func (b *Blockchain) WriteBlock(block *types.Block, source string) error {
 		"txs", len(block.Transactions),
 		"hash", header.Hash,
 		"parent", header.ParentHash,
+		"source", source,
 	}
 
 	if prevHeader, ok := b.GetHeaderByNumber(header.Number - 1); ok {
@@ -1126,18 +1127,19 @@ func (b *Blockchain) GetHashByNumber(blockNumber uint64) types.Hash {
 }
 
 // dispatchEvent pushes a new event to the stream
-func (b *Blockchain) dispatchEvent(evnt *Event) {
-	b.stream.push(evnt)
+func (b *Blockchain) dispatchEvent(event *Event) {
+	b.logger.Debug("dispatch event", "source", event.Source)
+	b.stream.push(event)
 }
 
 // writeHeaderImpl writes a block and the data, assumes the genesis is already set
-func (b *Blockchain) writeHeaderImpl(evnt *Event, header *types.Header) error {
+func (b *Blockchain) writeHeaderImpl(event *Event, header *types.Header) error {
 	currentHeader := b.Header()
 
 	// Write the data
 	if header.ParentHash == currentHeader.Hash {
 		// Fast path to save the new canonical header
-		return b.writeCanonicalHeader(evnt, header)
+		return b.writeCanonicalHeader(event, header)
 	}
 
 	if err := b.db.WriteHeader(header); err != nil {
@@ -1176,13 +1178,13 @@ func (b *Blockchain) writeHeaderImpl(evnt *Event, header *types.Header) error {
 	incomingTD := big.NewInt(0).Add(parentTD, big.NewInt(0).SetUint64(header.Difficulty))
 	if incomingTD.Cmp(currentTD) > 0 {
 		// new block has higher difficulty, reorg the chain
-		if err := b.handleReorg(evnt, currentHeader, header); err != nil {
+		if err := b.handleReorg(event, currentHeader, header); err != nil {
 			return err
 		}
 	} else {
 		// new block has lower difficulty, create a new fork
-		evnt.AddOldHeader(header)
-		evnt.Type = EventFork
+		event.AddOldHeader(header)
+		event.Type = EventFork
 
 		if err := b.writeFork(header); err != nil {
 			return err
