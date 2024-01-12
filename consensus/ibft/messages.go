@@ -4,7 +4,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/0xPolygon/polygon-edge/types"
-	protoIBFT "github.com/Route3/go-ibft/messages/proto"
+	protoIBFT "github.com/nubank/go-ibft/messages/proto"
 )
 
 func (i *backendIBFT) signMessage(msg *protoIBFT.Message) *protoIBFT.Message {

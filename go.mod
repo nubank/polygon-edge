@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	cloud.google.com/go/secretmanager v1.8.0
-	github.com/Route3/go-ibft v0.0.0-20230915132655-8d4c4c12f3cc
 	github.com/armon/go-metrics v0.4.1
 	github.com/aws/aws-sdk-go v1.44.61
 	github.com/btcsuite/btcd v0.22.1
@@ -22,6 +21,7 @@ require (
 	github.com/libp2p/go-libp2p-kbucket v0.5.0
 	github.com/libp2p/go-libp2p-pubsub v0.8.1
 	github.com/multiformats/go-multiaddr v0.7.0
+	github.com/nubank/go-ibft v0.1.0
 	github.com/prometheus/client_golang v1.13.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/spf13/cobra v1.6.1
