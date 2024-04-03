@@ -2,6 +2,7 @@ package itrie
 
 import (
 	"fmt"
+	"github.com/0xPolygon/polygon-edge/database"
 	"sync"
 
 	"github.com/0xPolygon/polygon-edge/helper/hex"
@@ -87,7 +88,7 @@ func (kv *KVStorage) Close() error {
 }
 
 func NewLevelDBStorage(path string, logger hclog.Logger) (Storage, error) {
-	db, err := leveldb.OpenFile(path, nil)
+	db, err := database.NewLevelDB(path, "trie")
 	if err != nil {
 		return nil, err
 	}

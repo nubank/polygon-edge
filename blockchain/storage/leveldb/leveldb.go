@@ -2,13 +2,15 @@ package leveldb
 
 import (
 	"github.com/0xPolygon/polygon-edge/blockchain/storage"
+	"github.com/0xPolygon/polygon-edge/database"
 	"github.com/hashicorp/go-hclog"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // NewLevelDBStorage creates the new storage reference with leveldb
 func NewLevelDBStorage(path string, logger hclog.Logger) (storage.Storage, error) {
-	db, err := leveldb.OpenFile(path, nil)
+	db, err := database.NewLevelDB(path, "blockchain")
+
 	if err != nil {
 		return nil, err
 	}
