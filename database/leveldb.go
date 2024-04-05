@@ -75,7 +75,7 @@ func NewLevelDB(path string, name string) (db *leveldb.DB, err error) {
 		fmt.Println("[[[[LEVELDB]]]] Set cache size")
 	}
 
-	db, err = leveldb.OpenFile(path, nil)
+	db, err = leveldb.OpenFile(path, opts)
 	if err != nil {
 		return
 	}
