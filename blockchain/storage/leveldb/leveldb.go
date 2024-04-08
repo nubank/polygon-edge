@@ -9,7 +9,7 @@ import (
 
 // NewLevelDBStorage creates the new storage reference with leveldb
 func NewLevelDBStorage(path string, logger hclog.Logger) (storage.Storage, error) {
-	db, err := database.NewLevelDB(path, "blockchain")
+	db, err := database.NewLevelDB(path, "blockchain", logger.Named("blockchain-database"))
 
 	if err != nil {
 		return nil, err

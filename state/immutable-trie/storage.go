@@ -88,7 +88,7 @@ func (kv *KVStorage) Close() error {
 }
 
 func NewLevelDBStorage(path string, logger hclog.Logger) (Storage, error) {
-	db, err := database.NewLevelDB(path, "trie")
+	db, err := database.NewLevelDB(path, "trie", logger.Named("trie-database"))
 	if err != nil {
 		return nil, err
 	}
