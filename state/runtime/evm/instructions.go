@@ -813,17 +813,18 @@ func opReturnDataCopy(c *state) {
 	dataOffset := c.pop()
 	length := c.pop()
 
-	if !c.allocateMemory(memOffset, length) {
-		return
-	}
-
 	if !dataOffset.IsUint64() {
-		c.exit(errGasUintOverflow)
+		c.exit(errReturnDataOutOfBounds)
 
 		return
 	}
 
-	if ulength := length.Uint64(); !c.consumeGas(((ulength + 31) / 32) * copyGas) {
+	if length.Sign() == 0 || !c.allocateMemory(memOffset, length) {
+		return
+	}
+
+	ulength := length.Uint64()
+	if !c.consumeGas(((ulength + 31) / 32) * copyGas) {
 		return
 	}
 
@@ -842,7 +843,7 @@ func opReturnDataCopy(c *state) {
 	}
 
 	data := c.returnData[dataOffset.Uint64():dataEndIndex]
-	copy(c.memory[memOffset.Uint64():], data)
+	copy(c.memory[memOffset.Uint64():memOffset.Uint64()+ulength], data)
 }
 
 func opCodeCopy(c *state) {
@@ -982,7 +983,7 @@ func opPush(n int) instruction {
 func opDup(n int) instruction {
 	return func(c *state) {
 		if !c.stackAtLeast(n) {
-			c.exit(errStackUnderflow)
+			c.exit(&runtime.StackUnderflowError{StackLen: c.sp, Required: n})
 		} else {
 			val := c.peekAt(n)
 			c.push1().Set(val)
@@ -993,7 +994,7 @@ func opDup(n int) instruction {
 func opSwap(n int) instruction {
 	return func(c *state) {
 		if !c.stackAtLeast(n + 1) {
-			c.exit(errStackUnderflow)
+			c.exit(&runtime.StackUnderflowError{StackLen: c.sp, Required: n + 1})
 		} else {
 			c.swap(n)
 		}
@@ -1011,7 +1012,7 @@ func opLog(size int) instruction {
 		}
 
 		if !c.stackAtLeast(2 + size) {
-			c.exit(errStackUnderflow)
+			c.exit(&runtime.StackUnderflowError{StackLen: c.sp, Required: 2 + size})
 
 			return
 		}
@@ -1173,7 +1174,7 @@ func opCall(op OpCode) instruction {
 		}
 
 		if result.Succeeded() || result.Reverted() {
-			if len(result.ReturnValue) != 0 {
+			if len(result.ReturnValue) != 0 && size > 0 {
 				copy(c.memory[offset:offset+size], result.ReturnValue)
 			}
 		}

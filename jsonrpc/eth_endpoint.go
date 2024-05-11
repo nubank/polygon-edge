@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/umbracle/fastrlp"
 
 	"github.com/0xPolygon/polygon-edge/chain"
 	"github.com/0xPolygon/polygon-edge/helper/common"
@@ -358,23 +357,7 @@ func (e *Eth) GetStorageAt(
 		return nil, err
 	}
 
-	// TODO: GetStorage should return the values already parsed
-
-	// Parse the RLP value
-	p := &fastrlp.Parser{}
-
-	v, err := p.Parse(result)
-	if err != nil {
-		return argBytesPtr(types.ZeroHash[:]), nil
-	}
-
-	data, err := v.Bytes()
-	if err != nil {
-		return argBytesPtr(types.ZeroHash[:]), nil
-	}
-
-	// Pad to return 32 bytes data
-	return argBytesPtr(types.BytesToHash(data).Bytes()), nil
+	return argBytesPtr(result), nil
 }
 
 // GasPrice returns the average gas price based on the last x blocks
@@ -654,7 +637,7 @@ func (e *Eth) GetTransactionCount(address types.Address, filter BlockNumberOrHas
 
 	// The filter is empty, use the latest block by default
 	if filter.BlockNumber == nil && filter.BlockHash == nil {
-		filter.BlockNumber, _ = createBlockNumberPointer("latest")
+		filter.BlockNumber, _ = createBlockNumberPointer(latest)
 	}
 
 	if filter.BlockNumber == nil {

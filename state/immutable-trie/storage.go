@@ -2,6 +2,8 @@ package itrie
 
 import (
 	"fmt"
+	"github.com/0xPolygon/polygon-edge/database"
+	"sync"
 
 	"github.com/0xPolygon/polygon-edge/helper/hex"
 	"github.com/0xPolygon/polygon-edge/types"
@@ -86,7 +88,7 @@ func (kv *KVStorage) Close() error {
 }
 
 func NewLevelDBStorage(path string, logger hclog.Logger) (Storage, error) {
-	db, err := leveldb.OpenFile(path, nil)
+	db, err := database.NewLevelDB(path, "trie", logger.Named("trie-database"))
 	if err != nil {
 		return nil, err
 	}
@@ -95,26 +97,34 @@ func NewLevelDBStorage(path string, logger hclog.Logger) (Storage, error) {
 }
 
 type memStorage struct {
+	l    *sync.Mutex
 	db   map[string][]byte
 	code map[string][]byte
 }
 
 type memBatch struct {
+	l  *sync.Mutex
 	db *map[string][]byte
 }
 
 // NewMemoryStorage creates an inmemory trie storage
 func NewMemoryStorage() Storage {
-	return &memStorage{db: map[string][]byte{}, code: map[string][]byte{}}
+	return &memStorage{db: map[string][]byte{}, code: map[string][]byte{}, l: new(sync.Mutex)}
 }
 
 func (m *memStorage) Put(p []byte, v []byte) {
+	m.l.Lock()
+	defer m.l.Unlock()
+
 	buf := make([]byte, len(v))
 	copy(buf[:], v[:])
 	m.db[hex.EncodeToHex(p)] = buf
 }
 
 func (m *memStorage) Get(p []byte) ([]byte, bool) {
+	m.l.Lock()
+	defer m.l.Unlock()
+
 	v, ok := m.db[hex.EncodeToHex(p)]
 	if !ok {
 		return []byte{}, false
@@ -124,17 +134,23 @@ func (m *memStorage) Get(p []byte) ([]byte, bool) {
 }
 
 func (m *memStorage) SetCode(hash types.Hash, code []byte) {
+	m.l.Lock()
+	defer m.l.Unlock()
+
 	m.code[hash.String()] = code
 }
 
 func (m *memStorage) GetCode(hash types.Hash) ([]byte, bool) {
+	m.l.Lock()
+	defer m.l.Unlock()
+
 	code, ok := m.code[hash.String()]
 
 	return code, ok
 }
 
 func (m *memStorage) Batch() Batch {
-	return &memBatch{db: &m.db}
+	return &memBatch{db: &m.db, l: new(sync.Mutex)}
 }
 
 func (m *memStorage) Close() error {
@@ -142,6 +158,9 @@ func (m *memStorage) Close() error {
 }
 
 func (m *memBatch) Put(p, v []byte) {
+	m.l.Lock()
+	defer m.l.Unlock()
+
 	buf := make([]byte, len(v))
 	copy(buf[:], v[:])
 	(*m.db)[hex.EncodeToHex(p)] = buf

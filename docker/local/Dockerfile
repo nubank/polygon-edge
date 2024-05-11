@@ -5,9 +5,17 @@ WORKDIR /polygon-edge
 ADD go.mod go.sum ./
 RUN go mod download
 
+RUN apk add git
+
 COPY . .
 
-RUN go build -o polygon-edge main.go
+RUN go build -o polygon-edge -tags netgo -ldflags="\
+		-s -w \
+    	-X 'github.com/0xPolygon/polygon-edge/versioning.Version=$(git describe --tags --abbrev=0)' \
+		-X 'github.com/0xPolygon/polygon-edge/versioning.Commit=$(git rev-parse HEAD)' \
+		-X 'github.com/0xPolygon/polygon-edge/versioning.Branch=$(git rev-parse --abbrev-ref HEAD | tr -d '\040\011\012\015\n')' \
+		-X 'github.com/0xPolygon/polygon-edge/versioning.BuildTime=$(date)'" \
+	main.go
 
 FROM alpine:latest AS runner
 

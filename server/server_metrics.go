@@ -2,13 +2,15 @@ package server
 
 import (
 	"fmt"
+	"github.com/0xPolygon/polygon-edge/profiling"
+	"github.com/0xPolygon/polygon-edge/versioning"
 	"os"
 	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
+	ddprofiler "gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )
 
 func (s *Server) setupTelemetry() error {
@@ -51,17 +53,17 @@ func (s *Server) enableDataDogProfiler() error {
 		ddPort = os.Getenv("DD_TRACE_AGENT_PORT")
 	}
 
-	if err := profiler.Start(
+	if err := ddprofiler.Start(
 		// enable all profiles
-		profiler.WithProfileTypes(
-			profiler.CPUProfile,
-			profiler.HeapProfile,
-			profiler.BlockProfile,
-			profiler.MutexProfile,
-			profiler.GoroutineProfile,
-			profiler.MetricsProfile,
+		ddprofiler.WithProfileTypes(
+			ddprofiler.CPUProfile,
+			ddprofiler.HeapProfile,
+			ddprofiler.BlockProfile,
+			ddprofiler.MutexProfile,
+			ddprofiler.GoroutineProfile,
+			ddprofiler.MetricsProfile,
 		),
-		profiler.WithAgentAddr(ddIP+":"+ddPort),
+		ddprofiler.WithAgentAddr(ddIP+":"+ddPort),
 	); err != nil {
 		return fmt.Errorf("could not start datadog profiler: %w", err)
 	}
@@ -75,8 +77,34 @@ func (s *Server) enableDataDogProfiler() error {
 
 func (s *Server) closeDataDogProfiler() {
 	s.logger.Debug("closing DataDog profiler")
-	profiler.Stop()
+	ddprofiler.Stop()
 
 	s.logger.Debug("closing DataDog tracer")
 	tracer.Stop()
+}
+
+func (s *Server) enableProfiler() error {
+	if os.Getenv("PROFILER_ENABLED") == "" {
+		s.logger.Debug("To enable profiling, set env var PROFILER_ENABLED to true")
+		return nil
+	}
+
+	pServer := os.Getenv("PROFILER_SERVER")
+
+	if pServer == "" {
+		return fmt.Errorf("profiling server not defined, define with PROFILER SERVER env var")
+	}
+
+	s.profiler = profiling.NewProfiler(pServer, "polygon-edge", profiling.WithTags(map[string]string{
+		"commit_hash": versioning.Commit,
+		"version":     versioning.Version,
+		"branch":      versioning.Version,
+		"build_time":  versioning.BuildTime,
+	}))
+
+	return s.profiler.Start()
+}
+
+func (s *Server) stopProfiler() error {
+	return s.profiler.Stop()
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/0xPolygon/polygon-edge/profiling"
 	"math/big"
 	"net"
 	"net/http"
@@ -70,6 +71,9 @@ type Server struct {
 
 	// restore
 	restoreProgression *progress.ProgressionWrapper
+
+	// profiler
+	profiler profiling.Profiler
 }
 
 var dirPaths = []string{
@@ -147,6 +151,11 @@ func NewServer(config *Config) (*Server, error) {
 		}
 
 		m.prometheusServer = m.startPrometheusServer(config.Telemetry.PrometheusAddr)
+	}
+
+	// Set up profiler
+	if pErr := m.enableProfiler(); pErr != nil {
+		m.logger.Error("Could not setup profiler", "err", pErr.Error())
 	}
 
 	// Set up datadog profiler
@@ -745,6 +754,11 @@ func (s *Server) Close() {
 
 	// close DataDog profiler
 	s.closeDataDogProfiler()
+
+	// close profiler
+	if err := s.stopProfiler(); err != nil {
+		s.logger.Error("Could not close profiler", "err", err.Error())
+	}
 }
 
 // Entry is a consensus configuration entry

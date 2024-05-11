@@ -63,7 +63,6 @@ type txOrigin int
 const (
 	local  txOrigin = iota // json-RPC/gRPC endpoints
 	gossip                 // gossip protocol
-	reorg                  // legacy code
 )
 
 func (o txOrigin) String() (s string) {
@@ -72,8 +71,6 @@ func (o txOrigin) String() (s string) {
 		s = "local"
 	case gossip:
 		s = "gossip"
-	case reorg:
-		s = "reorg"
 	}
 
 	return
@@ -438,7 +435,10 @@ func (p *TxPool) Pop(tx *types.Transaction) {
 func (p *TxPool) Drop(tx *types.Transaction) {
 	// fetch associated account
 	account := p.accounts.get(tx.From)
+	p.dropAccount(account, tx.Nonce, tx)
+}
 
+func (p *TxPool) dropAccount(account *account, nextNonce uint64, tx *types.Transaction) {
 	account.promoted.lock(true)
 	account.enqueued.lock(true)
 
@@ -460,7 +460,6 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	}()
 
 	// rollback nonce
-	nextNonce := tx.Nonce
 	account.setNonce(nextNonce)
 
 	// drop promoted
@@ -475,11 +474,14 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 	clearAccountQueue(dropped)
 
 	p.eventManager.signalEvent(proto.EventType_DROPPED, tx.Hash)
-	p.logger.Debug("dropped account txs",
-		"num", droppedCount,
-		"next_nonce", nextNonce,
-		"address", tx.From.String(),
-	)
+
+	if p.logger.IsDebug() {
+		p.logger.Debug("dropped account txs",
+			"num", droppedCount,
+			"next_nonce", nextNonce,
+			"address", tx.From.String(),
+		)
+	}
 }
 
 // Demote excludes an account from being further processed during block building
@@ -488,10 +490,12 @@ func (p *TxPool) Drop(tx *types.Transaction) {
 func (p *TxPool) Demote(tx *types.Transaction) {
 	account := p.accounts.get(tx.From)
 	if account.Demotions() >= maxAccountDemotions {
-		p.logger.Debug(
-			"Demote: threshold reached - dropping account",
-			"addr", tx.From.String(),
-		)
+		if p.logger.IsDebug() {
+			p.logger.Debug(
+				"Demote: threshold reached - dropping account",
+				"addr", tx.From.String(),
+			)
+		}
 
 		p.Drop(tx)
 
@@ -509,33 +513,16 @@ func (p *TxPool) Demote(tx *types.Transaction) {
 // ResetWithHeaders processes the transactions from the new
 // headers to sync the pool with the new state.
 func (p *TxPool) ResetWithHeaders(headers ...*types.Header) {
-	e := &blockchain.Event{
-		NewChain: headers,
-	}
-
 	// process the txs in the event
 	// to make sure the pool is up-to-date
-	p.processEvent(e)
+	p.processEvent(&blockchain.Event{
+		NewChain: headers,
+	})
 }
 
 // processEvent collects the latest nonces for each account containted
 // in the received event. Resets all known accounts with the new nonce.
 func (p *TxPool) processEvent(event *blockchain.Event) {
-	oldTxs := make(map[types.Hash]*types.Transaction)
-
-	// Legacy reorg logic //
-	for _, header := range event.OldChain {
-		// transactions to be returned to the pool
-		block, ok := p.store.GetBlockByHash(header.Hash, true)
-		if !ok {
-			continue
-		}
-
-		for _, tx := range block.Transactions {
-			oldTxs[tx.Hash] = tx
-		}
-	}
-
 	// Grab the latest state root now that the block has been inserted
 	stateRoot := p.store.Header().StateRoot
 	stateNonces := make(map[types.Address]uint64)
@@ -578,17 +565,6 @@ func (p *TxPool) processEvent(event *blockchain.Event) {
 
 			// update the result map
 			stateNonces[addr] = latestNonce
-
-			// Legacy reorg logic //
-			// Update the addTxns in case of reorgs
-			delete(oldTxs, tx.Hash)
-		}
-	}
-
-	// Legacy reorg logic //
-	for _, tx := range oldTxs {
-		if err := p.addTx(reorg, tx); err != nil {
-			p.logger.Error("add tx", "err", err)
 		}
 	}
 
@@ -691,8 +667,9 @@ func (p *TxPool) signalPruning() {
 
 func (p *TxPool) pruneAccountsWithNonceHoles() {
 	p.accounts.Range(
-		func(_, value interface{}) bool {
+		func(accountOwner, value interface{}) bool {
 			account, _ := value.(*account)
+			owner, _ := accountOwner.(types.Address)
 
 			account.enqueued.lock(true)
 			defer account.enqueued.unlock()
@@ -712,6 +689,13 @@ func (p *TxPool) pruneAccountsWithNonceHoles() {
 			p.index.remove(removed...)
 			p.gauge.decrease(slotsRequired(removed...))
 
+			p.logger.Info("Pruning account transactions",
+				"account", owner.String(),
+				"removed_size", len(removed),
+				"enqueued", account.enqueued.length(),
+				"promoted", account.promoted.length(),
+			)
+
 			return true
 		},
 	)
@@ -722,10 +706,12 @@ func (p *TxPool) pruneAccountsWithNonceHoles() {
 // successful, an account is created for this address
 // (only once) and an enqueueRequest is signaled.
 func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
-	p.logger.Debug("add tx",
-		"origin", origin.String(),
-		"hash", tx.Hash.String(),
-	)
+	if p.logger.IsDebug() {
+		p.logger.Debug("add tx",
+			"origin", origin.String(),
+			"hash", tx.Hash.String(),
+		)
+	}
 
 	// validate incoming tx
 	if err := p.validateTx(tx); err != nil {
@@ -733,6 +719,12 @@ func (p *TxPool) addTx(origin txOrigin, tx *types.Transaction) error {
 	}
 
 	if p.gauge.highPressure() {
+		p.logger.Info("High pressure pruning",
+			"height", p.gauge.read(),
+			"max", p.gauge.max,
+			"from", tx.From.String(),
+		)
+
 		p.signalPruning()
 
 		//	only accept transactions with expected nonce
@@ -784,7 +776,9 @@ func (p *TxPool) handleEnqueueRequest(req enqueueRequest) {
 		return
 	}
 
-	p.logger.Debug("enqueue request", "hash", tx.Hash.String())
+	if p.logger.IsDebug() {
+		p.logger.Debug("enqueue request", "hash", tx.Hash.String())
+	}
 
 	p.gauge.increase(slotsRequired(tx))
 
@@ -808,7 +802,10 @@ func (p *TxPool) handlePromoteRequest(req promoteRequest) {
 
 	// promote enqueued txs
 	promoted, pruned := account.promote()
-	p.logger.Debug("promote request", "promoted", promoted, "addr", addr.String())
+
+	if p.logger.IsDebug() {
+		p.logger.Debug("promote request", "promoted", promoted, "addr", addr.String())
+	}
 
 	p.index.remove(pruned...)
 	p.gauge.decrease(slotsRequired(pruned...))
@@ -852,7 +849,9 @@ func (p *TxPool) addGossipTx(obj interface{}, _ peer.ID) {
 	// add tx
 	if err := p.addTx(gossip, tx); err != nil {
 		if errors.Is(err, ErrAlreadyKnown) {
-			p.logger.Debug("rejecting known tx (gossip)", "hash", tx.Hash.String())
+			if p.logger.IsDebug() {
+				p.logger.Debug("rejecting known tx (gossip)", "hash", tx.Hash.String())
+			}
 
 			return
 		}
@@ -922,6 +921,7 @@ func (p *TxPool) resetAccounts(stateNonces map[types.Address]uint64) {
 // updateAccountSkipsCounts update the accounts' skips,
 // the number of the consecutive blocks that doesn't have the account's transactions
 func (p *TxPool) updateAccountSkipsCounts(latestActiveAccounts map[types.Address]uint64) {
+	stateRoot := p.store.Header().StateRoot
 	p.accounts.Range(
 		func(key, value interface{}) bool {
 			address, _ := key.(types.Address)
@@ -940,14 +940,13 @@ func (p *TxPool) updateAccountSkipsCounts(latestActiveAccounts map[types.Address
 				return true
 			}
 
-			account.incrementSkips()
-
-			if account.skips < maxAccountSkips {
+			if account.incrementSkips() < maxAccountSkips {
 				return true
 			}
 
 			// account has been skipped too many times
-			p.Drop(firstTx)
+			nextNonce := p.store.GetNonce(stateRoot, firstTx.From)
+			p.dropAccount(account, nextNonce, firstTx)
 
 			account.resetSkips()
 
