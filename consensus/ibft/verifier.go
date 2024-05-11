@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 
 	"github.com/0xPolygon/polygon-edge/types"
-	"github.com/Route3/go-ibft/messages"
-	protoIBFT "github.com/Route3/go-ibft/messages/proto"
+	"github.com/nubank/go-ibft/messages"
+	protoIBFT "github.com/nubank/go-ibft/messages/proto"
 )
 
 // Verifier impl for go-ibft
